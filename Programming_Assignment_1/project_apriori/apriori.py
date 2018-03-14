@@ -22,8 +22,14 @@ for i in input_data :
 	total_transaction = total_transaction + 1
 
 def RoundAtSecondPoint(num) :
-	math.ceil(num, 4)
-	
+	numebr_string = str(num)
+	floating_point = numebr_string.split(".")
+	if len(floating_point[1]) > 2 :
+		if int(floating_point[1][2]) == 5 :
+			num += 0.001
+		return round(num, 2)
+	else :
+		return num
 
 # get support of item_set
 def GetSupport(item_set, tranx):
@@ -33,7 +39,7 @@ def GetSupport(item_set, tranx):
 		if item_set.issubset(set(i)):
 			count = count + 1
 
-	return round(decimal.Decimal((count / total_transaction) * 100), 2)
+	return RoundAtSecondPoint((count / total_transaction) * 100)
 
 # get confidence of item_set
 def GetConfidence(item_set_x, item_set_y, tranx):
@@ -51,7 +57,7 @@ def GetConfidence(item_set_x, item_set_y, tranx):
 	if total_count == 0 :
 		print("no item set")
 		return 0
-	return round(decimal.Decimal((count / total_count) * 100), 2)
+	return RoundAtSecondPoint((count / total_count) * 100)
 	#return count / total_count * 100
 
 def GetSubset(item_set) : # get length k-1 subset
