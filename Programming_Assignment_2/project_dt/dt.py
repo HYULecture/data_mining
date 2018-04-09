@@ -24,64 +24,74 @@ def parse_file_to_attribute_list (filename) :
 
     return attributes, attribute_list, data
 
-def write_file_with_decision_tree (attributes, data, filename) :
-    with open(filename, "w") as output_file :
-        for i in attributes :
-            output_file.write("{} ", i)
-        output_file.write("\n")
-
-        for i in data :
-            for j in i :
-                output_file.write("{} ", j)
-            output_file.write("\n")
-
 def generate_decision_tree (attribute_list, data_set, attributes) :
     tree = [[[{}, [], data_set]]]
-    used_labels = []
 
+    level = 0
     while True :
-        level = len(tree) - 1
-        new_level_node = []
         count = 0
+        new_level_nodes = []
         for i in tree[level] :
-            label = get_label_for_splitting (i, attribute_list, attributes, used_labels)
-            if label == None :
-                break
+            label = get_label_for_splitting(i, attribute_list, attributes, i[0])
 
+            if label == None :
+                continue
+            
             if label == "homo" :
                 count = count + 1
                 continue
 
             # 데이터 나누는 과정 필요
             i[1].append(label)
-            tree.append(split_database(i[2], label, attribute_list, attributes))
-            used_labels.append(label)
+            new_level_nodes.extend(split_database(i[2], label, attribute_list, attributes, i[0]))
 
+        #print(str(new_level_nodes))
+        tree.append(list(new_level_nodes))
         if label == None or count == len(tree[level]):
             break
+        level = level + 1
 
+    reduced_tree = tree.copy()
+    index = 0
     for i in tree :
+        frequent_class = None
+        position = 0
         for j in i :
             if len(j[1]) <= 0 : #if child node
-                j[1].append(get_frequent (j[2], attribute_list, attributes))
+                frequent_class = get_frequent(j[2], attribute_list, attributes)
+                if frequent_class == None :
+                    reduced_tree[index].remove(j)
+                    continue
+                reduced_tree[index][position][1].append(frequent_class)
+            position = position + 1
+        index = index + 1
 
-    return tree
+    return reduced_tree
 
 def get_frequent (data_list, attribute_list, attributes) :
     position = len(attributes) - 1
     label = attributes[len(attributes) - 1]
 
     count = [0 for _ in attribute_list[label]]
+    count_copy = count.copy()
     for i in data_list :
         count[attribute_list[label].index(i[position])] += 1
-    return attribute_list[label][count.index(max(count))]
 
-def split_database (data_list, label, attributes_list, attributes) :
+    if (count == count_copy) :
+        print("none")
+        return None
+    else :
+        #print("not none", attribute_list[label][count.index(max(count))])
+        return attribute_list[label][count.index(max(count))]
+
+def split_database (data_list, label, attributes_list, attributes, parent_attributes) :
     new_level = [[{}, [], []] for _ in attribute_list[label]]
     for i in attributes_list[label] :
         new_level[attributes_list[label].index(i)][0][label] = i
     for i in data_list :
         new_level[attributes_list[label].index(i[attributes.index(label)])][2].append(i)
+    for i in new_level :
+        i[0].update(parent_attributes)
     return new_level
 
 def get_label_for_splitting (internal_node, attribute_list, attributes, used_label) :
@@ -144,50 +154,63 @@ def get_info (pi) :
             info -= (i/total * log(i/total, 2))
     return info
 
-def get_data_class (attributes, attributes_list, tree, data) :
-    print("new", data)
+def get_data_class (attributes, attribute_list, tree, data) :
+    label = {}
+    child_label = tree[0][0][1][0]
 
-    label = None
-    value = None
-    for i in tree : #each level nodes
-        for j in i : # each nodes
-            print("each node in same level :", str(j))
+    #print(str(data))
 
-            if label == None :
-                label = j[1][0]
-                if label not in attributes:
-                    return label
-                print("None", label)
-                value = data[attributes.index(label)]
-                continue
+    if child_label not in attribute_list : #if leaf node
+        return child_label
+    value = data[attributes.index(child_label)]
+    level = 0
+    index = 0
 
-            if label not in attributes :
-                return label
+    for i in tree : #each level in tree
+        level = level + 1
+        index = 0
+        for j in i : #each node in level
+            index = index + 1
+            if label.items() <= j[0].items() :
+                if child_label in j[0].keys() :
+                    if value != None and value == j[0][child_label] :
+                        if len(j[1]) <= 0 :
+                            return get_frequent(j[2], attribute_list, attributes)
+                        child_label = j[1][0]
+                        label = j[0]
+                        current_label = child_label
 
-            #print(str(j))
-            if label in j[0].keys() :
-                if j[0][label] == value :
-                    label = j[1][0]
-                    print(label)
+                        #print(str(label), str(j[0]))
+                        if child_label not in attribute_list :
+                            return child_label
+                        value = data[attributes.index(child_label)]
+                        break
 
-                    if label not in attributes:
-                        return label
-                    value = data[attributes.index(label)]
-                    break
+    return get_class(label, tree, attributes, attribute_list)
 
-            #elif j[0] == label
+def get_class(label, tree, attributes, attribute_list) :
+    for i in tree :
+        for j in i :
+            if len(list(j[0].keys())) >= 0 :
+                if label == j[0] :
+                    return get_frequent(j[2], attribute_list, attributes)
+    label_copy = label.copy()
+    del label_copy[list(label_copy.keys())[0]]
+    print(str(label), str(label_copy))
+    return get_class(label_copy, tree)
 
 
 attributes, attribute_list, data = parse_file_to_attribute_list(training_file)
 tree = generate_decision_tree (attribute_list, data, attributes)
-
 t_attributes, t_attribute_list, t_data = parse_file_to_attribute_list(test_file)
-"""
-for i in tree :
-    print(str(i))
-"""
-with open(result_file, "w") as result :
 
+for i in tree :
+    for j in i :
+        print(str(j)+"\n")
+    print("\n\n")
+print()
+
+with open(result_file, "w") as result :
     for i in attributes :
         result.write("{}\t".format(i))
     result.write("\n")
