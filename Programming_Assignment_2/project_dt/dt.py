@@ -47,7 +47,7 @@ def generate_decision_tree (attribute_list, data_set, attributes) :
             new_level_nodes.extend(split_database(i[2], label, attribute_list, attributes, i[0]))
 
         tree.append(list(new_level_nodes))
-        if label == None or count == len(tree[level]):
+        if label == None or count == len(tree[level]) :
             break
         level = level + 1
 
@@ -171,6 +171,7 @@ def get_data_class (attributes, attribute_list, tree, data) :
                         label = j[0]
                         next_label = check_existing_in_next_level(tree, label, level - 1, j[1])
                         if next_label == None :
+                            print(label, get_class(label, tree, attributes, attribute_list))
                             return get_class(label, tree, attributes, attribute_list)
                         else :
                             child_label = next_label
@@ -204,10 +205,10 @@ def get_class(label, tree, attributes, attribute_list) :
                 if label == j[0] :
                     frequent = get_frequent(j[2], attribute_list, attributes)
                     if frequent != None :
-                        return get_frequent(j[2], attribute_list, attributes)
+                        return frequent
             else :
                 if frequent != None:
-                    return get_frequent(tree[0][0][2], attribute_list, attributes)
+                    return frequent
     label_copy = label.copy()
     del label_copy[list(label_copy.keys())[0]]
     return get_class(label_copy, tree, attributes, attribute_list)
@@ -215,16 +216,18 @@ def get_class(label, tree, attributes, attribute_list) :
 def branch(tree, min_data, attributes, attribute_list) :
 
     reduced_tree = tree.copy()
-    index = 0
+    reversed_tree = tree.copy()
+    reversed_tree.reverse()
+    index = len(tree)
     #parent = None
-    for i in tree :
+    for i in reversed_tree :
+        index = index - 1
         for j in i :
             if len(j[2]) < min_data :
                 reduced_tree[index].remove(j)
                 parent = get_parent(tree, j[0])
                 parent[1].append(get_class(parent[0], tree, attributes, attribute_list))
             #parent = j
-        index = index + 1
 
     return reduced_tree
 
@@ -239,6 +242,10 @@ def get_parent(tree, label) :
     return get_parent(tree, label_copy)
 
 attributes, attribute_list, data = parse_file_to_attribute_list(training_file)
+
+for i in attribute_list.keys() :
+    sorted(attribute_list[i])
+
 tree = generate_decision_tree (attribute_list, data, attributes)
 tree = branch(tree, minimum_data, attributes, attribute_list)
 t_attributes, t_attribute_list, t_data = parse_file_to_attribute_list(test_file)
@@ -253,13 +260,15 @@ for i in tree :
 for i in tree :
     for j in i :
         print(str(j[0]), len(j[2]))
-        print("data : ", str(j[2]), "\n")
+        #print("data : ", str(j[2]), "\n")
     print("\n\n")
 
 with open(result_file, "w") as result :
     for i in attributes :
-        result.write("{}\t".format(i))
-    result.write("\n")
+        if attributes.index(i) != len(attributes) - 1 :
+            result.write("{}\t".format(i))
+        else :
+            result.write("{}\n".format(i))
 
     for i in t_data :
         for j in i :
