@@ -22,6 +22,7 @@ def parse_file_to_attribute_list (filename) :
             if i[j] not in attribute_list[attributes[j]] :
                 attribute_list[attributes[j]].append(i[j])
 
+
     return attributes, attribute_list, data
 
 def generate_decision_tree (attribute_list, data_set, attributes) :
@@ -45,7 +46,6 @@ def generate_decision_tree (attribute_list, data_set, attributes) :
             i[1].append(label)
             new_level_nodes.extend(split_database(i[2], label, attribute_list, attributes, i[0]))
 
-        #print(str(new_level_nodes))
         tree.append(list(new_level_nodes))
         if label == None or count == len(tree[level]):
             break
@@ -54,7 +54,6 @@ def generate_decision_tree (attribute_list, data_set, attributes) :
     reduced_tree = tree.copy()
     index = 0
     for i in tree :
-        frequent_class = None
         position = 0
         for j in i :
             if len(j[1]) <= 0 : #if child node
@@ -78,10 +77,8 @@ def get_frequent (data_list, attribute_list, attributes) :
         count[attribute_list[label].index(i[position])] += 1
 
     if (count == count_copy) :
-        print("none")
         return None
     else :
-        #print("not none", attribute_list[label][count.index(max(count))])
         return attribute_list[label][count.index(max(count))]
 
 def split_database (data_list, label, attributes_list, attributes, parent_attributes) :
@@ -103,7 +100,6 @@ def get_label_for_splitting (internal_node, attribute_list, attributes, used_lab
         return None
 
     for i in set(list(attribute_list.keys())[: -1])-set(used_label) :
-        #print(i)
         # attribute list dictionary attribute value list access by key
         for j in attribute_list[i] :
             # generate attribute value list element counting list
@@ -119,7 +115,6 @@ def get_label_for_splitting (internal_node, attribute_list, attributes, used_lab
         return "homo"
     max_label = attributes[information_gain.index(max(information_gain))]
     return max_label
-    #information_gain = get_info_gain(information_gain[: len(information_gain) - 1], information_gain[len(information_gain) - 1])
 
 def get_total_info (attributes, attribute_list, data) :
     attribute_element_cnt = [0 for _ in attribute_list[attributes[len(attributes) - 1]]]
@@ -158,13 +153,10 @@ def get_data_class (attributes, attribute_list, tree, data) :
     label = {}
     child_label = tree[0][0][1][0]
 
-    #print(str(data))
-
     if child_label not in attribute_list : #if leaf node
         return child_label
     value = data[attributes.index(child_label)]
     level = 0
-    index = 0
 
     for i in tree : #each level in tree
         level = level + 1
@@ -178,9 +170,7 @@ def get_data_class (attributes, attribute_list, tree, data) :
                             return get_frequent(j[2], attribute_list, attributes)
                         child_label = j[1][0]
                         label = j[0]
-                        current_label = child_label
 
-                        #print(str(label), str(j[0]))
                         if child_label not in attribute_list :
                             return child_label
                         value = data[attributes.index(child_label)]
@@ -196,7 +186,6 @@ def get_class(label, tree, attributes, attribute_list) :
                     return get_frequent(j[2], attribute_list, attributes)
     label_copy = label.copy()
     del label_copy[list(label_copy.keys())[0]]
-    print(str(label), str(label_copy))
     return get_class(label_copy, tree)
 
 
@@ -206,10 +195,9 @@ t_attributes, t_attribute_list, t_data = parse_file_to_attribute_list(test_file)
 
 for i in tree :
     for j in i :
-        print(str(j)+"\n")
+        print(str(j))
     print("\n\n")
-print()
-
+    
 with open(result_file, "w") as result :
     for i in attributes :
         result.write("{}\t".format(i))
