@@ -5,6 +5,8 @@ training_file = sys.argv[1]
 test_file = sys.argv[2]
 result_file = sys.argv[3]
 
+minimum_data = 0
+
 def parse_file_to_attribute_list (filename) :
     # read file and parsing it to data.
     with open(filename) as input_file :
@@ -21,8 +23,6 @@ def parse_file_to_attribute_list (filename) :
         for j in range(len(attributes)) :
             if i[j] not in attribute_list[attributes[j]] :
                 attribute_list[attributes[j]].append(i[j])
-
-
     return attributes, attribute_list, data
 
 def generate_decision_tree (attribute_list, data_set, attributes) :
@@ -168,36 +168,94 @@ def get_data_class (attributes, attribute_list, tree, data) :
                     if value != None and value == j[0][child_label] :
                         if len(j[1]) <= 0 :
                             return get_frequent(j[2], attribute_list, attributes)
-                        child_label = j[1][0]
                         label = j[0]
+                        next_label = check_existing_in_next_level(tree, label, level - 1, j[1])
+                        if next_label == None :
+                            return get_class(label, tree, attributes, attribute_list)
+                        else :
+                            child_label = next_label
 
-                        if child_label not in attribute_list :
-                            return child_label
+
+
+                        #if child_label not in attribute_list :
+                        #    return child_label
                         value = data[attributes.index(child_label)]
                         break
 
     return get_class(label, tree, attributes, attribute_list)
+
+def check_existing_in_next_level(tree, label, current, next_label) :
+    for i in tree :
+        if current != 0 :
+            current = current - 1
+            continue
+        for j in i :
+            if label.items() <= j[0].items() :
+                for k in next_label :
+                    if k in j[0].keys() :
+                        return k
+    return None
+
 
 def get_class(label, tree, attributes, attribute_list) :
     for i in tree :
         for j in i :
             if len(list(j[0].keys())) >= 0 :
                 if label == j[0] :
-                    return get_frequent(j[2], attribute_list, attributes)
+                    frequent = get_frequent(j[2], attribute_list, attributes)
+                    if frequent != None :
+                        return get_frequent(j[2], attribute_list, attributes)
+            else :
+                if frequent != None:
+                    return get_frequent(tree[0][0][2], attribute_list, attributes)
     label_copy = label.copy()
     del label_copy[list(label_copy.keys())[0]]
-    return get_class(label_copy, tree)
+    return get_class(label_copy, tree, attributes, attribute_list)
 
+def branch(tree, min_data, attributes, attribute_list) :
+
+    reduced_tree = tree.copy()
+    index = 0
+    #parent = None
+    for i in tree :
+        for j in i :
+            if len(j[2]) < min_data :
+                reduced_tree[index].remove(j)
+                parent = get_parent(tree, j[0])
+                parent[1].append(get_class(parent[0], tree, attributes, attribute_list))
+            #parent = j
+        index = index + 1
+
+    return reduced_tree
+
+def get_parent(tree, label) :
+    for i in tree :
+        for j in i :
+            if j[0] == label :
+                return j
+
+    label_copy = label.copy()
+    del label_copy[list(label_copy.keys())[0]]
+    return get_parent(tree, label_copy)
 
 attributes, attribute_list, data = parse_file_to_attribute_list(training_file)
 tree = generate_decision_tree (attribute_list, data, attributes)
+tree = branch(tree, minimum_data, attributes, attribute_list)
 t_attributes, t_attribute_list, t_data = parse_file_to_attribute_list(test_file)
 
+"""
 for i in tree :
     for j in i :
         print(str(j))
     print("\n\n")
-    
+"""
+
+for i in tree :
+    for j in i :
+        print(str(j[0]), len(j[2]))
+        print("data : ", str(j[2]), "\n")
+    print("\n\n")
+
 with open(result_file, "w") as result :
     for i in attributes :
         result.write("{}\t".format(i))
