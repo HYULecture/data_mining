@@ -95,7 +95,7 @@ def get_label (used_label, data_set, attribute_list) :
 		# append data by attribute by i (label)
 		data_set_by_label_attribute = [[] for _ in attribute_list[i]]
 		gini[i] = get_gini_impurity(gini_val, i, attribute_list[i], list(attribute_list.keys()).index(i), list(attribute_list.keys())[-1], list(attribute_list.values())[-1], data_set)
-	
+
 	print("gini", gini)
 	# find homogenous or return min label
 	if max(gini.values()) == 1 :
@@ -111,7 +111,7 @@ def get_gini (class_label, class_attribute, data_set) :
 	count = [0 for _ in class_attribute]
 	for i in data_set :
 		count[class_attribute.index(i[-1])] += 1
-	
+
 	# if no data, return None
 	total = len(data_set)
 	if total <= 0 :
@@ -134,7 +134,7 @@ def get_average_gini (label, label_attribute, label_index, class_label, class_at
 
 	if sum(count_by_label_attribute) <= 0 : # no data
 		return 0
-	
+
 	gini_avg = 0
 	index = 0
 	for i in count_by_label_attribute :
@@ -149,14 +149,14 @@ def get_gini_impurity (gini, label, label_attribute, label_index, class_label, c
 
 def split_data (parent_label, new_label, new_label_attributes, new_label_index, data_set) :
 	new_level_nodes = [[{}, [], []] for _ in new_label_attributes]
-	
+
 	# append label
 	index = 0
 	for i in new_level_nodes :
 		i[0][new_label] = new_label_attributes[index]
 		i[0].update(parent_label)
 		index = index + 1
-		
+
 	# append data
 	for i in data_set :
 		new_level_nodes[new_label_attributes.index(i[new_label_index])][2].append(i)
@@ -170,7 +170,7 @@ def get_majority (data_set, class_attribute) :
 
 	for i in data_set :
 		count[class_attribute.index(i[-1])] += 1
-	
+
 	if count == origin_count : # no data
 		return None
 
@@ -194,40 +194,52 @@ def get_parent(label, tree) :
 
 	return get_parent(tree, label_copy)
 
-"""
+
 def get_class (data, attribute_list, tree) :
 	# initial search settings
 	label = {}
-	child_label = tree[0][0][1][0]
-
-	if child_label not in attribute_list : # if leaf == root
-		return child_label
-	value = data[list(attribute_list.keys()).index(child_label)]
 
 	# tree search
-	level = 0
-	for i in tree :
-		level = 
+	for i in tree : # each level in tree
+		for j in i : # each node in level
+			if label.items() <= j[0].items() : # if all label in current node label
+				if len(j[1]) <= 0 : # no next label
+					parent_label = label.copy()
+					current_class = None
+					while current_class == None :
+						parent = get_parent(parent_label, tree)
+						current_class = get_majority(parent[2], list(attribute_list.values())[-1])
+						return current_class
+				elif j[1][0] in list(attribute_list.values())[-1] : # if child label == class (leaf node)
+					return j[1][0]
+				else : # get next level
+					label = {}
+					print(j[1][0], list(attribute_list.keys()).index(j[1][0]), data)
+					label[j[1][0]] = data[list(attribute_list.keys()).index(j[1][0])]
+					label.update(j[0])
 
-"""
+	return get_majority(tree[0][0][2], list(attribute_list.values())[-1])
+
+
 attribute_list, data = parse_file_to_attribute_list(training_file)
+test_attribute_list, test_data = parse_file_to_attribute_list(test_file)
 decision_tree = generate_decision_tree(attribute_list, data)
 
 print("tree :")
 for i in decision_tree :
 	for j in i :
 		print(str(j[0]), str(j[1]), len(j[2]))
-		#print("data : ", str(j[2]), "\n")
 	print("\n\n")
 
 with open(result_file, "w") as result :
-    for i in attributes :
-        if attributes.index(i) != len(attributes) - 1 :
-            result.write("{}\t".format(i))
-        else :
-            result.write("{}\n".format(i))
+	attributes = list(attribute_list.keys())
+	for i in attributes :
+		if attributes.index(i) != len(attributes) - 1 :
+			result.write("{}\t".format(i))
+		else :
+			result.write("{}\n".format(i))
 
-    for i in t_data :
-        for j in i :
-            result.write("{}\t".format(j))
-        result.write("{}\n".format(get_data_class(attributes, attribute_list, tree, i)))
+	for i in test_data :
+		for j in i :
+			result.write("{}\t".format(j))
+		result.write("{}\n".format(get_class(i, attribute_list, decision_tree)))
