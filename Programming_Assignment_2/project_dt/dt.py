@@ -1,267 +1,224 @@
-# get minimum support, input file name, output file name
 import sys
 from math import log
+
+# get name of files from argument
 training_file = sys.argv[1]
 test_file = sys.argv[2]
 result_file = sys.argv[3]
 
-minimum_data = 0
-
+# parsing file to attribute list, data list
+# attribute_list : {'attribute name' : 'attribute value'}
+# data : [data]
 def parse_file_to_attribute_list (filename) :
-    # read file and parsing it to data.
-    with open(filename) as input_file :
-        attributes = input_file.readline()
-        attributes = attributes.split()
-        data = input_file.read().split()
-        data = [data[i: i + len(attributes)] for i in range(0, len(data), len(attributes))]
+	# read file and parsing it to data
+	with open(filename) as file :
+		attributes = file.readline().split()
+		data = file.read().split()
+		data = [data[i : i + len(attributes)] for i in range(0, len(data), len(attributes))]
 
-    attribute_list = {}
-    for i in attributes:
-        attribute_list[i] = []
-    
-    for i in data :
-        for j in range(len(attributes)) :
-            if i[j] not in attribute_list[attributes[j]] :
-                attribute_list[attributes[j]].append(i[j])
-    return attributes, attribute_list, data
+	# generate attribute dictionary
+	attribute_list = {}
+	for i in attributes :
+		attribute_list[i] = []
 
-def generate_decision_tree (attribute_list, data_set, attributes) :
-    tree = [[[{}, [], data_set]]]
+	# get attribute list
+	for i in data :
+		for j in range(len(attributes)) :
+			if i[j] not in attribute_list[attributes[j]] :
+				attribute_list[attributes[j]].append(i[j])
 
-    level = 0
-    while True :
-        count = 0
-        new_level_nodes = []
-        for i in tree[level] :
-            label = get_label_for_splitting(i, attribute_list, attributes, i[0])
+	return attribute_list, data
 
-            if label == None :
-                continue
-            
-            if label == "homo" :
-                count = count + 1
-                continue
+# generate decision tree
+def generate_decision_tree (attribute_list, data_set) :
+	tree = [[[{}, [], data_set]]] # [tree [level [node]]]
+								# node : {label}, [child label of class], [data list]
 
-            # 데이터 나누는 과정 필요
-            i[1].append(label)
-            new_level_nodes.extend(split_database(i[2], label, attribute_list, attributes, i[0]))
+	# make data homogeneous by splitting
+	level = 0
+	while True :
+		count = 0
+		new_level_nodes = [] # [level [node]]
+		for i in tree[level] :
+			label = get_label(i[0], i[2], attribute_list)
 
-        tree.append(list(new_level_nodes))
-        if label == None or count == len(tree[level]) :
-            break
-        level = level + 1
+			if label == None : # no more label or homogenous
+				count = count + 1
+				continue
 
-    reduced_tree = tree.copy()
-    index = 0
-    for i in tree :
-        position = 0
-        for j in i :
-            if len(j[1]) <= 0 : #if child node
-                frequent_class = get_frequent(j[2], attribute_list, attributes)
-                if frequent_class == None :
-                    reduced_tree[index].remove(j)
-                    continue
-                reduced_tree[index][position][1].append(frequent_class)
-            position = position + 1
-        index = index + 1
+			i[1].append(label)
+			new_level_nodes.extend(split_data(i[0], label, attribute_list[label], list(attribute_list.keys()).index(label), i[2]))
+		tree.append(list(new_level_nodes))
+		if count == len(tree[level]) :
+			break
+		level = level + 1
 
-    return reduced_tree
+	# if tree node has no data -> remove
+	# if tree node homogenous -> child label location = class
+	reduced_tree = tree.copy()
+	tree.reverse()
 
-def get_frequent (data_list, attribute_list, attributes) :
-    position = len(attributes) - 1
-    label = attributes[len(attributes) - 1]
-
-    count = [0 for _ in attribute_list[label]]
-    count_copy = count.copy()
-    for i in data_list :
-        count[attribute_list[label].index(i[position])] += 1
-
-    if (count == count_copy) :
-        return None
-    else :
-        return attribute_list[label][count.index(max(count))]
-
-def split_database (data_list, label, attributes_list, attributes, parent_attributes) :
-    new_level = [[{}, [], []] for _ in attribute_list[label]]
-    for i in attributes_list[label] :
-        new_level[attributes_list[label].index(i)][0][label] = i
-    for i in data_list :
-        new_level[attributes_list[label].index(i[attributes.index(label)])][2].append(i)
-    for i in new_level :
-        i[0].update(parent_attributes)
-    return new_level
-
-def get_label_for_splitting (internal_node, attribute_list, attributes, used_label) :
-
-    information_gain = [0 for _ in attribute_list]
-
-    # attribute list dictionary key access
-    if len(list(attribute_list.keys())) <= 1 :
-        return None
-
-    for i in set(list(attribute_list.keys())[: -1])-set(used_label) :
-        # attribute list dictionary attribute value list access by key
-        for j in attribute_list[i] :
-            # generate attribute value list element counting list
-            attribute_element_data = [[] for _ in attribute_list[i]]
-            # access data set in internal node and counting each attribute value
-            internal_data = []
-            for m in internal_node[2] :
-                attribute_element_data[attribute_list[i].index(m[attributes.index(i)])].append(m)
-                internal_data.append(m)
-            information_gain[attributes.index(i)] = get_info_gain(attributes, attribute_list, attribute_element_data, i, get_total_info(attributes, attribute_list, internal_data))
-
-    if max(information_gain) == 0 :
-        return "homo"
-    max_label = attributes[information_gain.index(max(information_gain))]
-    return max_label
-
-def get_total_info (attributes, attribute_list, data) :
-    attribute_element_cnt = [0 for _ in attribute_list[attributes[len(attributes) - 1]]]
-    for i in data :
-        attribute_element_cnt[attribute_list[attributes[len(attributes) - 1]].index(i[len(attributes) - 1])] += 1
-
-    return get_info(attribute_element_cnt)
-
-def get_info_gain (attributes, attribute_list, data_by_attribute, label, total_info) :
-    attribute_element_cnt = [[0 for _ in attribute_list[attributes[len(attributes) - 1]]] for __ in attribute_list[label]]
-    for i in data_by_attribute :
-        for j in i :
-            attribute_element_cnt[attribute_list[label].index(j[attributes.index(label)])][attribute_list[attributes[len(attributes) - 1]].index(j[len(attributes) - 1])] += 1
-
-    info = 0
-    total = 0
-    for i in data_by_attribute :
-        total += len(i)
-    if total == 0 :
-        return -1
-    for i in attribute_element_cnt :
-        info += sum(i)/total * get_info(i)
-    return total_info - info
-
-def get_info (pi) :
-    info = 0
-    total = sum(pi)
-    if total == 0 :
-        return -1
-    for i in pi :
-        if i / total != 0 :
-            info -= (i/total * log(i/total, 2))
-    return info
-
-def get_data_class (attributes, attribute_list, tree, data) :
-    label = {}
-    child_label = tree[0][0][1][0]
-
-    if child_label not in attribute_list : #if leaf node
-        return child_label
-    value = data[attributes.index(child_label)]
-    level = 0
-
-    for i in tree : #each level in tree
-        level = level + 1
-        index = 0
-        for j in i : #each node in level
-            index = index + 1
-            if label.items() <= j[0].items() :
-                if child_label in j[0].keys() :
-                    if value != None and value == j[0][child_label] :
-                        if len(j[1]) <= 0 :
-                            return get_frequent(j[2], attribute_list, attributes)
-                        label = j[0]
-                        next_label = check_existing_in_next_level(tree, label, level - 1, j[1])
-                        if next_label == None :
-                            print(label, get_class(label, tree, attributes, attribute_list))
-                            return get_class(label, tree, attributes, attribute_list)
-                        else :
-                            child_label = next_label
+	index = len(tree) - 1
+	for i in tree :
+		position = 0
+		for j in i :
+			if len(j[1]) <= 0 : # if child node
+				majority_class = get_majority(j[2], list(attribute_list.values())[-1])
+				if majority_class == None : # no data
+					parent = get_parent(j[0], tree)
+					parent[1] = get_majority(parent[2], list(attribute_list.values())[-1])
+					reduced_tree[index].remove(j)
+					continue
+				reduced_tree[index][position][1].append(majority_class)
+			position = position + 1
+		index = index - 1
+	return reduced_tree
 
 
+def get_label (used_label, data_set, attribute_list) :
+	label_candidate = list(set(list(attribute_list.keys())[:-1])-set(used_label))
 
-                        #if child_label not in attribute_list :
-                        #    return child_label
-                        value = data[attributes.index(child_label)]
-                        break
+	# list for saving gini values
+	gini = {}
+	gini_compare = []
+	for i in label_candidate :
+		gini[i] = 0
+		gini_compare.append(0)
 
-    return get_class(label, tree, attributes, attribute_list)
+	# no more usable label, return None
+	if len(list(gini.keys())) <= 0 :
+		return None
 
-def check_existing_in_next_level(tree, label, current, next_label) :
-    for i in tree :
-        if current != 0 :
-            current = current - 1
-            continue
-        for j in i :
-            if label.items() <= j[0].items() :
-                for k in next_label :
-                    if k in j[0].keys() :
-                        return k
-    return None
+	# calculate gini each labels
+	gini_val = get_gini(list(attribute_list.keys())[-1], list(attribute_list.values())[-1], data_set)
+	for i in label_candidate :
+		# append data by attribute by i (label)
+		data_set_by_label_attribute = [[] for _ in attribute_list[i]]
+		gini[i] = get_gini_impurity(gini_val, i, attribute_list[i], list(attribute_list.keys()).index(i), list(attribute_list.keys())[-1], list(attribute_list.values())[-1], data_set)
+	
+	print("gini", gini)
+	# find homogenous or return min label
+	if max(gini.values()) == 1 :
+		return None
+	elif list(gini.values()) == gini_compare :
+		return None
+	else :
+		new_label = label_candidate[list(gini.values()).index(max(list(gini.values())))]
+		return new_label
+
+def get_gini (class_label, class_attribute, data_set) :
+	# count by class attribute
+	count = [0 for _ in class_attribute]
+	for i in data_set :
+		count[class_attribute.index(i[-1])] += 1
+	
+	# if no data, return None
+	total = len(data_set)
+	if total <= 0 :
+		return 0
+
+	# calculate gini
+	gini = 1
+	for i in count :
+		gini -= ((i/total) * (i/total))
+
+	return gini
+
+def get_average_gini (label, label_attribute, label_index, class_label, class_attribute, data_set) :
+	count_by_label_attribute = [0 for _ in label_attribute]
+	data_set_by_label_attribute = [[] for _ in label_attribute]
+	# count data by label attribute
+	for i in data_set :
+		count_by_label_attribute[label_attribute.index(i[label_index])] += 1
+		data_set_by_label_attribute[label_attribute.index(i[label_index])].append(i)
+
+	if sum(count_by_label_attribute) <= 0 : # no data
+		return 0
+	
+	gini_avg = 0
+	index = 0
+	for i in count_by_label_attribute :
+		gini_avg += (i/sum(count_by_label_attribute)) * get_gini(class_label, class_attribute, data_set_by_label_attribute[index])
+		index = index + 1
+
+	return gini_avg
 
 
-def get_class(label, tree, attributes, attribute_list) :
-    for i in tree :
-        for j in i :
-            if len(list(j[0].keys())) >= 0 :
-                if label == j[0] :
-                    frequent = get_frequent(j[2], attribute_list, attributes)
-                    if frequent != None :
-                        return frequent
-            else :
-                if frequent != None:
-                    return frequent
-    label_copy = label.copy()
-    del label_copy[list(label_copy.keys())[0]]
-    return get_class(label_copy, tree, attributes, attribute_list)
+def get_gini_impurity (gini, label, label_attribute, label_index, class_label, class_attribute, data_set) :
+	return gini - get_average_gini(label, label_attribute, label_index, class_label, class_attribute, data_set)
 
-def branch(tree, min_data, attributes, attribute_list) :
+def split_data (parent_label, new_label, new_label_attributes, new_label_index, data_set) :
+	new_level_nodes = [[{}, [], []] for _ in new_label_attributes]
+	
+	# append label
+	index = 0
+	for i in new_level_nodes :
+		i[0][new_label] = new_label_attributes[index]
+		i[0].update(parent_label)
+		index = index + 1
+		
+	# append data
+	for i in data_set :
+		new_level_nodes[new_label_attributes.index(i[new_label_index])][2].append(i)
 
-    reduced_tree = tree.copy()
-    reversed_tree = tree.copy()
-    reversed_tree.reverse()
-    index = len(tree)
-    #parent = None
-    for i in reversed_tree :
-        index = index - 1
-        for j in i :
-            if len(j[2]) < min_data :
-                reduced_tree[index].remove(j)
-                parent = get_parent(tree, j[0])
-                parent[1].append(get_class(parent[0], tree, attributes, attribute_list))
-            #parent = j
+	return new_level_nodes
 
-    return reduced_tree
+# if leaf node get class by majority
+def get_majority (data_set, class_attribute) :
+	count = [0 for _ in class_attribute]
+	origin_count = count.copy()
 
-def get_parent(tree, label) :
-    for i in tree :
-        for j in i :
-            if j[0] == label :
-                return j
+	for i in data_set :
+		count[class_attribute.index(i[-1])] += 1
+	
+	if count == origin_count : # no data
+		return None
 
-    label_copy = label.copy()
-    del label_copy[list(label_copy.keys())[0]]
-    return get_parent(tree, label_copy)
+	max_count = 0
+	for i in count :
+		if i == max(count) :
+			max_count = max_count + 1
 
-attributes, attribute_list, data = parse_file_to_attribute_list(training_file)
+	# 만약 개수가 같은 항목이 있다면 부모에게서 같은 개수의 항목 중 어떤 것이 많은지 확인
 
-for i in attribute_list.keys() :
-    sorted(attribute_list[i])
+	return class_attribute[count.index(max(count))]
 
-tree = generate_decision_tree (attribute_list, data, attributes)
-tree = branch(tree, minimum_data, attributes, attribute_list)
-t_attributes, t_attribute_list, t_data = parse_file_to_attribute_list(test_file)
+def get_parent(label, tree) :
+	label_copy = label.copy()
+	del label_copy[list(label_copy.keys())[0]]
+
+	for i in tree :
+		for j in i :
+			if j[0] == label:
+				return j
+
+	return get_parent(tree, label_copy)
 
 """
-for i in tree :
-    for j in i :
-        print(str(j))
-    print("\n\n")
-"""
+def get_class (data, attribute_list, tree) :
+	# initial search settings
+	label = {}
+	child_label = tree[0][0][1][0]
 
-for i in tree :
-    for j in i :
-        print(str(j[0]), len(j[2]))
-        #print("data : ", str(j[2]), "\n")
-    print("\n\n")
+	if child_label not in attribute_list : # if leaf == root
+		return child_label
+	value = data[list(attribute_list.keys()).index(child_label)]
+
+	# tree search
+	level = 0
+	for i in tree :
+		level = 
+
+"""
+attribute_list, data = parse_file_to_attribute_list(training_file)
+decision_tree = generate_decision_tree(attribute_list, data)
+
+print("tree :")
+for i in decision_tree :
+	for j in i :
+		print(str(j[0]), str(j[1]), len(j[2]))
+		#print("data : ", str(j[2]), "\n")
+	print("\n\n")
 
 with open(result_file, "w") as result :
     for i in attributes :
