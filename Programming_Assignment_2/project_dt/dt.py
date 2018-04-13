@@ -66,6 +66,7 @@ def generate_decision_tree (attribute_list, data_set) :
 			if len(j[1]) <= 0 : # if child node
 				majority_class = get_majority(j[2], list(attribute_list.values())[-1])
 				if majority_class == None : # no data
+					print("no data", j[0])
 				#	parent_idx, parent_pos = get_parent_index(j[0], reduced_tree)
 				#	reduced_tree[parent_idx][parent_pos][1] = get_majority(reduced_tree[parent_idx][parent_pos][2], list(attribute_list.values())[-1])
 					reduced_tree[index].remove(j)
@@ -106,18 +107,8 @@ def get_label (used_label, data_set, attribute_list, tree) :
 			gain_ratio[i] = gain[i] / splitted
 		else :
 			gain_ratio[i] = gain[i]
-	"""
-	# find homogenous or return min label
-	if max(gini.values()) == 1 :
-		return None
-	elif list(gini.values()) == gini_compare :
-		return None
-	else :
-		new_label = label_candidate[list(gini.values()).index(max(list(gini.values())))]
-		return new_label
-	"""
 
-	# find homogenous or return min label
+	# find homogenous or return max label by gain ratio
 	if max(gain_ratio.values()) == 1 :
 		return None
 	elif list(gain_ratio.values()) == gini_compare :
@@ -125,6 +116,20 @@ def get_label (used_label, data_set, attribute_list, tree) :
 	else :
 		new_label = label_candidate[list(gain_ratio.values()).index(max(list(gain_ratio.values())))]
 		return new_label
+	"""
+	# find homogenous or return max label by gini
+	if max(gini.values()) == 1 :
+		return None
+		#pass
+	elif list(gini.values()) == gini_compare :
+		return None
+		#pass
+	else :
+		new_label = label_candidate[list(gini.values()).index(max(list(gini.values())))]
+		return new_label
+	"""
+
+
 
 def get_info (class_label, class_attribute, data_set) :
 	# count by class attribute
@@ -272,7 +277,7 @@ def get_parent (label, tree) :
 			if j[0] == label:
 				return j
 
-	return get_parent(tree, label_copy)
+	return get_parent(label_copy, tree)
 
 def get_parent_index (label, tree) :
 	label_copy = label.copy()
@@ -299,22 +304,30 @@ def get_class (data, attribute_list, tree) :
 		for j in i : # each node in level
 			if label.items() <= j[0].items() : # if all label in current node label
 				if len(j[1]) <= 0 : # no next label
-					#parent_label = label.copy()
-					#current_class = None
-					#while current_class == None :
-					#	parent = get_parent(parent_label, tree)
-					#	current_class = get_majority(parent[2], list(attribute_list.values())[-1])
-					#	return current_class
-					return get_majority(j[2], list(attribute_list.values())[-1])
+					parent_label = label.copy()
+					current_class = None
+					while current_class == None :
+						parent = get_parent(parent_label, tree)
+						current_class = get_majority(parent[2], list(attribute_list.values())[-1])
+						parent_label = parent[0]
+					return current_class
+					#return get_majority(j[2], list(attribute_list.values())[-1])
 				elif j[1][0] in list(attribute_list.values())[-1] : # if child label == class (leaf node)
 					return j[1][0]
 				else : # get next level
 					label = {}
-					print(j[1][0], list(attribute_list.keys()).index(j[1][0]), data)
 					label[j[1][0]] = data[list(attribute_list.keys()).index(j[1][0])]
 					label.update(j[0])
+					break
 
-	return get_majority(tree[0][0][2], list(attribute_list.values())[-1])
+	parent_label = label.copy()
+	current_class = None
+	while current_class == None :
+		print(parent_label)
+		parent = get_parent(parent_label, tree)
+		current_class = get_majority(parent[2], list(attribute_list.values())[-1])
+		parent_label = parent[0]
+	return current_class
 
 
 attribute_list, data = parse_file_to_attribute_list(training_file)
