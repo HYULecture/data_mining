@@ -64,7 +64,6 @@ db_scan(objects)
 for i in range(num_of_cluster) :
   with open("input"+input_filename[-5]+"_cluster_"+str(i)+".txt", "w") as fo:
     for j in objects :
-      print("j")
       if j[3] == i :
         fo.write(str(j[0])+"\n")
 
